@@ -1,6 +1,91 @@
----
-alwaysApply: true
----
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+```bash
+# Development
+composer run dev       # Start all services (web, queue, logs, Vite) concurrently
+composer run setup     # Full setup: install deps, generate keys, migrate, seed
+
+# Testing
+composer run test      # Run full Pest test suite
+php artisan test --filter=TestClassName  # Run a single test class
+
+# Code quality
+./vendor/bin/pint      # Laravel Pint linter/formatter
+
+# Database
+php artisan migrate --seed   # Run migrations and seed
+php artisan jwt:secret       # Regenerate JWT secret
+
+# API docs
+php artisan scribe:generate  # Generate API documentation
+```
+
+Default admin credentials (seeded): `admin@example.com` / `password`
+
+## Architecture
+
+**Laravel 12 REST API** versioned at `/api/v1/`. The app is API-first with JWT authentication; Blade/Vite exist but the frontend is minimal.
+
+### Request lifecycle
+
+```
+Route (routes/api/v1/*.php)
+  → FormRequest (validation)
+  → Controller (app/Http/Controllers/Api/V1/)
+  → Policy (authorization, registered in AppServiceProvider)
+  → Model / Service
+  → Resource (response transformation)
+```
+
+### Key layers
+
+- **Controllers** (`app/Http/Controllers/Api/V1/`) — thin; delegate to models or IdentityService
+- **Form Requests** (`app/Http/Requests/`) — all validation lives here, not in controllers
+- **Resources** (`app/Http/Resources/`) — API response shaping; always use these, never return raw models
+- **Policies** (`app/Policies/`) — all authorization; registered in `AppServiceProvider`
+- **IdentityService** (`app/Services/Identity/`) — interface-backed service for user/role/department/team reads; bound in `AppServiceProvider`
+
+### Data model relationships
+
+```
+User ─── belongsTo ──→ Role
+User ─── belongsToMany ──→ Department (pivot)
+User ─── belongsToMany ──→ Team (pivot)
+
+FormTemplate ─── hasMany ──→ FormSubmission
+FormSubmission ─── hasMany ──→ FormSubmissionVersion  (audit trail)
+```
+
+`FormTemplate` stores `json_schema` and `ui_schema` as JSON columns. `FormSubmissionVersion` records every change to a submission, including `form_name` at the time of submission.
+
+### Authentication
+
+JWT via `php-open-source-saver/jwt-auth`. The `auth:api` middleware guard is defined in `config/auth.php`. `User` implements `JWTSubject`. Token refresh and invalidation are handled in `AuthController`.
+
+### Testing
+
+Pest v3 with an in-memory SQLite database (configured in `phpunit.xml`) — no real DB required for tests. Factories exist for all models. Feature tests hit real routes through the full middleware stack.
+
+## Tech stack
+
+| Layer | Package |
+|---|---|
+| Framework | Laravel 12, PHP 8.2+ |
+| Auth | jwt-auth v2.8, Laravel Fortify |
+| ORM | Eloquent (MySQL in production, SQLite in tests) |
+| Queue/Cache | Database-backed |
+| Frontend build | Vite 7, Tailwind CSS v4 |
+| Testing | Pest v3 + pest-plugin-laravel |
+| Linting | Laravel Pint |
+| API docs | Scribe v5 |
+| Local dev | Laravel Sail |
+
+===
+
 <laravel-boost-guidelines>
 === foundation rules ===
 
@@ -12,11 +97,13 @@ The Laravel Boost guidelines are specifically curated by Laravel maintainers for
 
 This application is a Laravel application and its main Laravel ecosystems package & versions are below. You are an expert with them all. Ensure you abide by these specific packages & versions.
 
-- php - 8.2.29
+- php - 8.2.30
 - laravel/fortify (FORTIFY) - v1
 - laravel/framework (LARAVEL) - v12
 - laravel/prompts (PROMPTS) - v0
+- laravel/boost (BOOST) - v2
 - laravel/mcp (MCP) - v0
+- laravel/pail (PAIL) - v1
 - laravel/pint (PINT) - v1
 - laravel/sail (SAIL) - v1
 - pestphp/pest (PEST) - v3
@@ -29,6 +116,7 @@ This project has domain-specific skills available. You MUST activate the relevan
 
 - `pest-testing` — Tests applications using the Pest 3 PHP framework. Activates when writing tests, creating unit or feature tests, adding assertions, testing Livewire components, architecture testing, debugging test failures, working with datasets or mocking; or when the user mentions test, spec, TDD, expects, assertion, coverage, or needs to verify functionality works.
 - `tailwindcss-development` — Styles applications using Tailwind CSS v4 utilities. Activates when adding styles, restyling components, working with gradients, spacing, layout, flex, grid, responsive design, dark mode, colors, typography, or borders; or when the user mentions CSS, styling, classes, Tailwind, restyle, hero section, cards, buttons, or any visual/UI changes.
+- `fortify-development` — Laravel Fortify headless authentication backend development. Activate when implementing authentication features including login, registration, password reset, email verification, two-factor authentication (2FA/TOTP), profile updates, headless auth, authentication scaffolding, or auth guards in Laravel applications.
 
 ## Conventions
 
@@ -63,18 +151,23 @@ This project has domain-specific skills available. You MUST activate the relevan
 
 - Laravel Boost is an MCP server that comes with powerful tools designed specifically for this application. Use them.
 
-## Artisan
+## Artisan Commands
 
-- Use the `list-artisan-commands` tool when you need to call an Artisan command to double-check the available parameters.
+- Run Artisan commands directly via the command line (e.g., `php artisan route:list`, `php artisan tinker --execute "..."`).
+- Use `php artisan list` to discover available commands and `php artisan [command] --help` to check parameters.
 
 ## URLs
 
 - Whenever you share a project URL with the user, you should use the `get-absolute-url` tool to ensure you're using the correct scheme, domain/IP, and port.
 
-## Tinker / Debugging
+## Debugging
 
-- You should use the `tinker` tool when you need to execute PHP to debug code or query Eloquent models directly.
 - Use the `database-query` tool when you only need to read from the database.
+- Use the `database-schema` tool to inspect table structure before writing migrations or models.
+- To execute PHP code for debugging, run `php artisan tinker --execute "your code here"` directly.
+- To read configuration values, read the config files directly or run `php artisan config:show [key]`.
+- To inspect routes, run `php artisan route:list` directly.
+- To check environment variables, read the `.env` file directly.
 
 ## Reading Browser Logs With the `browser-logs` Tool
 
@@ -105,7 +198,7 @@ This project has domain-specific skills available. You MUST activate the relevan
 ## Constructors
 
 - Use PHP 8 constructor property promotion in `__construct()`.
-    - <code-snippet>public function __construct(public GitHub $github) { }</code-snippet>
+    - `public function __construct(public GitHub $github) { }`
 - Do not allow empty `__construct()` methods with zero parameters unless the constructor is private.
 
 ## Type Declarations
@@ -113,12 +206,13 @@ This project has domain-specific skills available. You MUST activate the relevan
 - Always use explicit return type declarations for methods and functions.
 - Use appropriate PHP type hints for method parameters.
 
-<code-snippet name="Explicit Return Types and Method Params" lang="php">
+<!-- Explicit Return Types and Method Params -->
+```php
 protected function isAccessible(User $user, ?string $path = null): bool
 {
     ...
 }
-</code-snippet>
+```
 
 ## Enums
 
@@ -143,7 +237,7 @@ protected function isAccessible(User $user, ?string $path = null): bool
 
 # Do Things the Laravel Way
 
-- Use `php artisan make:` commands to create new files (i.e. migrations, controllers, models, etc.). You can list available Artisan commands using the `list-artisan-commands` tool.
+- Use `php artisan make:` commands to create new files (i.e. migrations, controllers, models, etc.). You can list available Artisan commands using `php artisan list` and check their parameters with `php artisan [command] --help`.
 - If you're creating a generic PHP class, use `php artisan make:class`.
 - Pass `--no-interaction` to all Artisan commands to ensure they work without user input. You should also pass the correct `--options` to ensure correct behavior.
 
@@ -157,7 +251,7 @@ protected function isAccessible(User $user, ?string $path = null): bool
 
 ### Model Creation
 
-- When creating new models, create useful factories and seeders for them too. Ask the user if they need any other things, using `list-artisan-commands` to check the available options to `php artisan make:model`.
+- When creating new models, create useful factories and seeders for them too. Ask the user if they need any other things, using `php artisan make:model --help` to check the available options.
 
 ### APIs & Eloquent Resources
 
@@ -223,8 +317,8 @@ protected function isAccessible(User $user, ?string $path = null): bool
 
 # Laravel Pint Code Formatter
 
-- You must run `vendor/bin/pint --dirty` before finalizing changes to ensure your code matches the project's expected style.
-- Do not run `vendor/bin/pint --test`, simply run `vendor/bin/pint` to fix any formatting issues.
+- If you have modified any PHP files, you must run `vendor/bin/pint --dirty --format agent` before finalizing changes to ensure your code matches the project's expected style.
+- Do not run `vendor/bin/pint --test --format agent`, simply run `vendor/bin/pint --format agent` to fix any formatting issues.
 
 === pest/core rules ===
 
@@ -243,4 +337,13 @@ protected function isAccessible(User $user, ?string $path = null): bool
 - Always use existing Tailwind conventions; check project patterns before adding new ones.
 - IMPORTANT: Always use `search-docs` tool for version-specific Tailwind CSS documentation and updated code examples. Never rely on training data.
 - IMPORTANT: Activate `tailwindcss-development` every time you're working with a Tailwind CSS or styling-related task.
+
+=== laravel/fortify rules ===
+
+# Laravel Fortify
+
+- Fortify is a headless authentication backend that provides authentication routes and controllers for Laravel applications.
+- IMPORTANT: Always use the `search-docs` tool for detailed Laravel Fortify patterns and documentation.
+- IMPORTANT: Activate `developing-with-fortify` skill when working with Fortify authentication features.
+
 </laravel-boost-guidelines>
