@@ -13,6 +13,7 @@ class FormSubmissionVersion extends Model
     protected $fillable = [
         'submission_id',
         'user_id',
+        'form_name',
         'content',
         'version_number',
     ];

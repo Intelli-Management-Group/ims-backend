@@ -4,6 +4,7 @@ namespace App\Http\Requests\Form;
 
 // use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreFormTemplateRequest extends FormRequest
 {
@@ -23,8 +24,9 @@ class StoreFormTemplateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'schema' => ['required', 'array'],
+            'name' => ['required', 'string', 'max:255', Rule::unique('form_templates')],
+            'json_schema' => ['required', 'array'],
+            'ui_schema' => ['present', 'array'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

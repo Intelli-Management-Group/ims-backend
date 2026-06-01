@@ -20,6 +20,7 @@ class FormSubmissionVersionResource extends JsonResource
             'submission_id' => $this->submission_id,
             'user_id' => $this->user_id,
             'user' => new UserResource($this->whenLoaded('user')),
+            'form_name' => $this->form_name,
             'content' => $this->content,
             'version_number' => $this->version_number,
             'created_at' => $this->created_at,

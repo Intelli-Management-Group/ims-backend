@@ -18,7 +18,8 @@ class FormTemplateResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'schema' => $this->schema,
+            'json_schema' => $this->json_schema,
+            'ui_schema' => $this->ui_schema,
             'is_active' => $this->is_active,
             'created_by' => $this->created_by,
             'creator' => new UserResource($this->whenLoaded('creator')),

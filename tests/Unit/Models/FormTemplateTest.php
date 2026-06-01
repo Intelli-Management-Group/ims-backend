@@ -20,13 +20,22 @@ class FormTemplateTest extends TestCase
         $this->assertEquals($user->id, $template->creator->id);
     }
 
-    public function test_it_casts_schema_to_array(): void
+    public function test_it_casts_json_schema_to_array(): void
     {
-        $schema = ['foo' => 'bar'];
-        $template = FormTemplate::factory()->create(['schema' => $schema]);
+        $jsonSchema = ['foo' => 'bar'];
+        $template = FormTemplate::factory()->create(['json_schema' => $jsonSchema]);
 
-        $this->assertIsArray($template->schema);
-        $this->assertEquals($schema, $template->schema);
+        $this->assertIsArray($template->json_schema);
+        $this->assertEquals($jsonSchema, $template->json_schema);
+    }
+
+    public function test_it_casts_ui_schema_to_array(): void
+    {
+        $uiSchema = ['ui:order' => ['field']];
+        $template = FormTemplate::factory()->create(['ui_schema' => $uiSchema]);
+
+        $this->assertIsArray($template->ui_schema);
+        $this->assertEquals($uiSchema, $template->ui_schema);
     }
 
     public function test_it_casts_is_active_to_boolean(): void

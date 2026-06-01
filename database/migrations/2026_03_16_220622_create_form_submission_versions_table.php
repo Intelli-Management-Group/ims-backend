@@ -15,6 +15,7 @@ return new class extends Migration
             $blueprint->id();
             $blueprint->foreignId('submission_id')->constrained('form_submissions')->cascadeOnDelete();
             $blueprint->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+            $blueprint->string('form_name');
             $blueprint->json('content');
             $blueprint->unsignedInteger('version_number');
             $blueprint->timestamps();

@@ -22,6 +22,7 @@ class FormSubmissionVersionFactory extends Factory
         return [
             'submission_id' => FormSubmission::factory(),
             'user_id' => User::factory(),
+            'form_name' => fake()->words(3, true).' Form',
             'content' => [
                 'first_name' => fake()->firstName(),
                 'last_name' => fake()->lastName(),

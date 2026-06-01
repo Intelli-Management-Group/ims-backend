@@ -13,7 +13,8 @@ class FormTemplate extends Model
 
     protected $fillable = [
         'name',
-        'schema',
+        'json_schema',
+        'ui_schema',
         'is_active',
         'created_by',
     ];
@@ -21,7 +22,8 @@ class FormTemplate extends Model
     protected function casts(): array
     {
         return [
-            'schema' => 'array',
+            'json_schema' => 'array',
+            'ui_schema' => 'array',
             'is_active' => 'boolean',
         ];
     }

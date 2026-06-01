@@ -24,6 +24,7 @@ class StoreFormSubmissionRequest extends FormRequest
     {
         return [
             'form_template_id' => ['required', 'exists:form_templates,id'],
+            'form_name' => ['required', 'string', 'max:255'],
             'content' => ['required', 'array'],
         ];
     }

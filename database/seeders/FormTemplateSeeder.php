@@ -18,23 +18,71 @@ class FormTemplateSeeder extends Seeder
         $templates = [
             [
                 'name' => 'Contact Request',
-                'schema' => [
-                    '$schema' => 'https://json-schema.org/draft/2020-12/schema',
+                'json_schema' => [
                     'type' => 'object',
+                    'required' => ['firstName', 'lastName'],
                     'properties' => [
-                        'full_name' => ['type' => 'string', 'title' => 'Full Name'],
-                        'email' => ['type' => 'string', 'format' => 'email', 'title' => 'Email'],
-                        'subject' => ['type' => 'string', 'title' => 'Subject'],
-                        'message' => ['type' => 'string', 'title' => 'Message'],
+                        'firstName' => [
+                            'type' => 'string',
+                            'title' => 'First name',
+                            'default' => 'Chuck',
+                        ],
+                        'lastName' => [
+                            'type' => 'string',
+                            'title' => 'Last name',
+                        ],
+                        'age' => [
+                            'type' => 'integer',
+                            'title' => 'Age',
+                        ],
+                        'bio' => [
+                            'type' => 'string',
+                            'title' => 'Bio',
+                        ],
+                        'password' => [
+                            'type' => 'string',
+                            'title' => 'Password',
+                            'minLength' => 3,
+                        ],
+                        'telephone' => [
+                            'type' => 'string',
+                            'title' => 'Telephone',
+                            'minLength' => 10,
+                        ],
                     ],
-                    'required' => ['full_name', 'email', 'message'],
+                ],
+                'ui_schema' => [
+                    'firstName' => [
+                        'ui:autofocus' => true,
+                        'ui:emptyValue' => '',
+                        'ui:placeholder' => 'ui:emptyValue causes this field to always be valid despite being required',
+                        'ui:autocomplete' => 'family-name',
+                    ],
+                    'lastName' => [
+                        'ui:autocomplete' => 'given-name',
+                    ],
+                    'age' => [
+                        'ui:widget' => 'updown',
+                        'ui:title' => 'Age of person',
+                    ],
+                    'bio' => [
+                        'ui:widget' => 'textarea',
+                    ],
+                    'password' => [
+                        'ui:widget' => 'password',
+                    ],
+                    'telephone' => [
+                        'ui:options' => [
+                            'inputType' => 'tel',
+                        ],
+                    ],
                 ],
             ],
             [
                 'name' => 'Incident Report',
-                'schema' => [
-                    '$schema' => 'https://json-schema.org/draft/2020-12/schema',
+                'json_schema' => [
                     'type' => 'object',
+                    'required' => ['title', 'description', 'severity'],
                     'properties' => [
                         'title' => ['type' => 'string', 'title' => 'Incident Title'],
                         'description' => ['type' => 'string', 'title' => 'Description'],
@@ -46,20 +94,24 @@ class FormTemplateSeeder extends Seeder
                         'reporter_name' => ['type' => 'string', 'title' => 'Reporter Name'],
                         'occurred_at' => ['type' => 'string', 'format' => 'date-time', 'title' => 'Occurred At'],
                     ],
-                    'required' => ['title', 'description', 'severity'],
+                ],
+                'ui_schema' => [
+                    'description' => ['ui:widget' => 'textarea'],
                 ],
             ],
             [
                 'name' => 'Feedback Survey',
-                'schema' => [
-                    '$schema' => 'https://json-schema.org/draft/2020-12/schema',
+                'json_schema' => [
                     'type' => 'object',
+                    'required' => ['rating', 'feedback_text'],
                     'properties' => [
                         'rating' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 5, 'title' => 'Rating'],
                         'feedback_text' => ['type' => 'string', 'title' => 'Feedback'],
                         'would_recommend' => ['type' => 'boolean', 'title' => 'Would recommend'],
                     ],
-                    'required' => ['rating', 'feedback_text'],
+                ],
+                'ui_schema' => [
+                    'feedback_text' => ['ui:widget' => 'textarea'],
                 ],
             ],
         ];
@@ -68,7 +120,9 @@ class FormTemplateSeeder extends Seeder
             FormTemplate::query()->updateOrCreate(
                 ['name' => $template['name']],
                 [
-                    'schema' => $template['schema'],
+                    'json_schema' => $template['json_schema'],
+                    'ui_schema' => $template['ui_schema'],
+                    'is_active' => true,
                     'created_by' => $createdBy?->id,
                 ]
             );

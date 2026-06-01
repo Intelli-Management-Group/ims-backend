@@ -19,14 +19,15 @@ class FormTemplateFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->words(3, true).' Form',
-            'schema' => [
+            'name' => fake()->unique()->words(3, true).' Form',
+            'json_schema' => [
                 'type' => 'object',
                 'properties' => [
                     'first_name' => ['type' => 'string'],
                     'last_name' => ['type' => 'string'],
                 ],
             ],
+            'ui_schema' => [],
             'is_active' => true,
             'created_by' => User::factory(),
         ];

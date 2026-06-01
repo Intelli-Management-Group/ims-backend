@@ -65,13 +65,16 @@ test('user can show form template', function () {
 
     $response->assertSuccessful()
         ->assertJsonPath('data.id', $template->id)
-        ->assertJsonPath('data.name', $template->name);
+        ->assertJsonPath('data.name', $template->name)
+        ->assertJsonPath('data.json_schema', $template->json_schema)
+        ->assertJsonPath('data.ui_schema', $template->ui_schema);
 });
 
 test('user can create form template', function () {
     $data = [
         'name' => 'New Form',
-        'schema' => ['type' => 'object'],
+        'json_schema' => ['type' => 'object'],
+        'ui_schema' => [],
     ];
 
     $response = $this->postJson('/api/v1/form-templates', $data, [
@@ -80,6 +83,8 @@ test('user can create form template', function () {
 
     $response->assertCreated()
         ->assertJsonPath('data.name', 'New Form')
+        ->assertJsonPath('data.json_schema.type', 'object')
+        ->assertJsonPath('data.ui_schema', [])
         ->assertJsonPath('data.created_by', $this->user->id);
 });
 
@@ -88,6 +93,7 @@ test('user can update form template', function () {
 
     $response = $this->putJson("/api/v1/form-templates/{$template->id}", [
         'name' => 'Updated Name',
+        'json_schema' => ['type' => 'object', 'title' => 'Updated'],
         'is_active' => false,
     ], [
         'Authorization' => "Bearer $this->token",
@@ -95,6 +101,7 @@ test('user can update form template', function () {
 
     $response->assertSuccessful()
         ->assertJsonPath('data.name', 'Updated Name')
+        ->assertJsonPath('data.json_schema.title', 'Updated')
         ->assertJsonPath('data.is_active', false);
 });
 
@@ -106,10 +113,56 @@ test('form template validation', function (array $data, array $errors) {
     $response->assertUnprocessable()
         ->assertJsonValidationErrors($errors);
 })->with([
-    'missing name' => [['schema' => []], ['name']],
-    'missing schema' => [['name' => 'Test'], ['schema']],
-    'invalid schema type' => [['name' => 'Test', 'schema' => 'not-an-array'], ['schema']],
+    'missing name' => [['json_schema' => [], 'ui_schema' => []], ['name']],
+    'missing json_schema' => [['name' => 'Test', 'ui_schema' => []], ['json_schema']],
+    'missing ui_schema' => [['name' => 'Test', 'json_schema' => []], ['ui_schema']],
+    'invalid json_schema type' => [['name' => 'Test', 'json_schema' => 'not-an-array', 'ui_schema' => []], ['json_schema']],
+    'invalid ui_schema type' => [['name' => 'Test', 'json_schema' => [], 'ui_schema' => 'not-an-array'], ['ui_schema']],
 ]);
+
+test('form template name must be unique on creation', function () {
+    FormTemplate::factory()->create(['name' => 'Existing Form']);
+
+    $response = $this->postJson('/api/v1/form-templates', [
+        'name' => 'Existing Form',
+        'json_schema' => ['type' => 'object'],
+        'ui_schema' => [],
+    ], [
+        'Authorization' => "Bearer $this->token",
+    ]);
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['name']);
+});
+
+test('form template name must be unique on update', function () {
+    FormTemplate::factory()->create(['name' => 'Existing Form']);
+    $template = FormTemplate::factory()->create(['name' => 'Another Form']);
+
+    $response = $this->putJson("/api/v1/form-templates/{$template->id}", [
+        'name' => 'Existing Form',
+    ], [
+        'Authorization' => "Bearer $this->token",
+    ]);
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['name']);
+});
+
+test('form template name can be updated to same name', function () {
+    $template = FormTemplate::factory()->create(['name' => 'My Form']);
+
+    $response = $this->putJson("/api/v1/form-templates/{$template->id}", [
+        'name' => 'My Form',
+        'is_active' => false,
+    ], [
+        'Authorization' => "Bearer $this->token",
+    ]);
+
+    $response->assertSuccessful()
+        ->assertJsonPath('data.name', 'My Form')
+        ->assertJsonPath('data.is_active', false);
+});
 
 test('unauthenticated user cannot access form template routes', function (string $method, string $uri) {
     $response = $this->json($method, $uri);
@@ -132,7 +185,7 @@ test('show non-existent form template returns 404', function () {
 
 test('update non-existent form template returns 404', function () {
     $response = $this->putJson('/api/v1/form-templates/999', [
-        'name' => 'Updated Name',
+        'json_schema' => ['type' => 'object'],
     ], [
         'Authorization' => "Bearer $this->token",
     ]);
@@ -181,7 +234,16 @@ test('admin can show inactive form template', function () {
 });
 
 test('user can update form template with partial data', function () {
-    $template = FormTemplate::factory()->create(['name' => 'Original', 'is_active' => true]);
+    $originalSchema = [
+        'type' => 'object',
+        'properties' => ['a' => ['type' => 'string']],
+    ];
+    $template = FormTemplate::factory()->create([
+        'name' => 'Original',
+        'json_schema' => $originalSchema,
+        'ui_schema' => ['ui:order' => ['a']],
+        'is_active' => true,
+    ]);
 
     $response = $this->putJson("/api/v1/form-templates/{$template->id}", [
         'is_active' => false,
@@ -191,5 +253,7 @@ test('user can update form template with partial data', function () {
 
     $response->assertSuccessful()
         ->assertJsonPath('data.name', 'Original')
+        ->assertJsonPath('data.json_schema', $originalSchema)
+        ->assertJsonPath('data.ui_schema', ['ui:order' => ['a']])
         ->assertJsonPath('data.is_active', false);
 });

@@ -4,6 +4,7 @@ namespace App\Http\Requests\Form;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateFormTemplateRequest extends FormRequest
 {
@@ -23,8 +24,9 @@ class UpdateFormTemplateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['sometimes', 'string', 'max:255'],
-            'schema' => ['sometimes', 'array'],
+            'name' => ['sometimes', 'string', 'max:255', Rule::unique('form_templates')->ignore($this->route('form_template'))],
+            'json_schema' => ['sometimes', 'array'],
+            'ui_schema' => ['sometimes', 'array'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

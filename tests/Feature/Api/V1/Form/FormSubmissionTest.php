@@ -17,6 +17,7 @@ test('user can create form submission', function () {
     $template = FormTemplate::factory()->create();
     $data = [
         'form_template_id' => $template->id,
+        'form_name' => $template->name,
         'content' => ['field' => 'value'],
     ];
 
@@ -25,8 +26,9 @@ test('user can create form submission', function () {
     ]);
 
     $response->assertCreated()
-        ->assertJsonPath('data.form_template_id', $template->id)
+        ->assertJsonPath('data.template.id', $template->id)
         ->assertJsonPath('data.current_version.version_number', 1)
+        ->assertJsonPath('data.current_version.form_name', $template->name)
         ->assertJsonPath('data.current_version.content.field', 'value');
 });
 
@@ -46,12 +48,14 @@ test('user can update form submission and create new version', function () {
     $submission = FormSubmission::create(['form_template_id' => $template->id]);
     $v1 = $submission->versions()->create([
         'user_id' => $this->user->id,
+        'form_name' => $template->name,
         'content' => ['v' => 1],
         'version_number' => 1,
     ]);
     $submission->update(['current_version_id' => $v1->id]);
 
     $response = $this->putJson("/api/v1/form-submissions/{$submission->id}", [
+        'form_name' => $template->name,
         'content' => ['v' => 2],
         'version_number' => 1,
     ], [
@@ -60,6 +64,7 @@ test('user can update form submission and create new version', function () {
 
     $response->assertSuccessful()
         ->assertJsonPath('data.current_version.version_number', 2)
+        ->assertJsonPath('data.current_version.form_name', $template->name)
         ->assertJsonPath('data.current_version.content.v', 2);
 
     $this->assertDatabaseCount('form_submission_versions', 2);
@@ -70,6 +75,7 @@ test('update form submission returns 409 on version conflict', function () {
     $submission = FormSubmission::create(['form_template_id' => $template->id]);
     $v1 = $submission->versions()->create([
         'user_id' => $this->user->id,
+        'form_name' => $template->name,
         'content' => ['v' => 1],
         'version_number' => 1,
     ]);
@@ -77,6 +83,7 @@ test('update form submission returns 409 on version conflict', function () {
 
     // Try to update with wrong version number
     $response = $this->putJson("/api/v1/form-submissions/{$submission->id}", [
+        'form_name' => $template->name,
         'content' => ['v' => 2],
         'version_number' => 0, // Wrong version
     ], [
@@ -89,8 +96,8 @@ test('update form submission returns 409 on version conflict', function () {
 test('user can list versions for a submission', function () {
     $template = FormTemplate::factory()->create();
     $submission = FormSubmission::create(['form_template_id' => $template->id]);
-    $submission->versions()->create(['user_id' => $this->user->id, 'content' => ['v' => 1], 'version_number' => 1]);
-    $submission->versions()->create(['user_id' => $this->user->id, 'content' => ['v' => 2], 'version_number' => 2]);
+    $submission->versions()->create(['user_id' => $this->user->id, 'form_name' => $template->name, 'content' => ['v' => 1], 'version_number' => 1]);
+    $submission->versions()->create(['user_id' => $this->user->id, 'form_name' => $template->name, 'content' => ['v' => 2], 'version_number' => 2]);
 
     $response = $this->getJson("/api/v1/form-submissions/{$submission->id}/versions", [
         'Authorization' => "Bearer $this->token",
@@ -129,10 +136,11 @@ test('form submission validation', function (array $data, array $errors) {
     $response->assertUnprocessable()
         ->assertJsonValidationErrors($errors);
 })->with([
-    'missing template id' => [['content' => []], ['form_template_id']],
-    'invalid template id' => [['form_template_id' => 999, 'content' => []], ['form_template_id']],
-    'missing content' => [['form_template_id' => 1], ['content']],
-    'invalid content type' => [['form_template_id' => 1, 'content' => 'not-an-array'], ['content']],
+    'missing template id' => [['form_name' => 'test', 'content' => []], ['form_template_id']],
+    'invalid template id' => [['form_template_id' => 999, 'form_name' => 'test', 'content' => []], ['form_template_id']],
+    'missing form name' => [['form_template_id' => 1, 'content' => []], ['form_name']],
+    'missing content' => [['form_template_id' => 1, 'form_name' => 'test'], ['content']],
+    'invalid content type' => [['form_template_id' => 1, 'form_name' => 'test', 'content' => 'not-an-array'], ['content']],
 ]);
 
 test('update form submission validation', function (array $data, array $errors) {
@@ -146,9 +154,10 @@ test('update form submission validation', function (array $data, array $errors) 
     $response->assertUnprocessable()
         ->assertJsonValidationErrors($errors);
 })->with([
-    'missing content' => [['version_number' => 1], ['content']],
-    'missing version_number' => [['content' => []], ['version_number']],
-    'invalid version_number type' => [['content' => [], 'version_number' => 'one'], ['version_number']],
+    'missing form name' => [['content' => [], 'version_number' => 1], ['form_name']],
+    'missing content' => [['form_name' => 'test', 'version_number' => 1], ['content']],
+    'missing version_number' => [['form_name' => 'test', 'content' => []], ['version_number']],
+    'invalid version_number type' => [['form_name' => 'test', 'content' => [], 'version_number' => 'one'], ['version_number']],
 ]);
 
 test('list form submissions can be filtered by form_template_id', function () {
@@ -169,7 +178,7 @@ test('list form submissions can be filtered by form_template_id', function () {
 test('user can show specific version of a submission', function () {
     $template = FormTemplate::factory()->create();
     $submission = FormSubmission::create(['form_template_id' => $template->id]);
-    $v1 = $submission->versions()->create(['user_id' => $this->user->id, 'content' => ['v' => 1], 'version_number' => 1]);
+    $v1 = $submission->versions()->create(['user_id' => $this->user->id, 'form_name' => $template->name, 'content' => ['v' => 1], 'version_number' => 1]);
 
     $response = $this->getJson("/api/v1/form-submissions/{$submission->id}/versions/{$v1->id}", [
         'Authorization' => "Bearer $this->token",
@@ -185,7 +194,7 @@ test('show version returns 404 if version does not belong to submission', functi
     $submission1 = FormSubmission::create(['form_template_id' => $template->id]);
     $submission2 = FormSubmission::create(['form_template_id' => $template->id]);
 
-    $v1 = $submission1->versions()->create(['user_id' => $this->user->id, 'content' => ['v' => 1], 'version_number' => 1]);
+    $v1 = $submission1->versions()->create(['user_id' => $this->user->id, 'form_name' => $template->name, 'content' => ['v' => 1], 'version_number' => 1]);
 
     $response = $this->getJson("/api/v1/form-submissions/{$submission2->id}/versions/{$v1->id}", [
         'Authorization' => "Bearer $this->token",
@@ -228,9 +237,9 @@ test('form submissions list per_page is bounded between 1 and 100', function () 
 test('versions list returns versions ordered by version_number descending', function () {
     $template = FormTemplate::factory()->create();
     $submission = FormSubmission::create(['form_template_id' => $template->id]);
-    $submission->versions()->create(['user_id' => $this->user->id, 'content' => ['v' => 1], 'version_number' => 1]);
-    $submission->versions()->create(['user_id' => $this->user->id, 'content' => ['v' => 2], 'version_number' => 2]);
-    $submission->versions()->create(['user_id' => $this->user->id, 'content' => ['v' => 3], 'version_number' => 3]);
+    $submission->versions()->create(['user_id' => $this->user->id, 'form_name' => $template->name, 'content' => ['v' => 1], 'version_number' => 1]);
+    $submission->versions()->create(['user_id' => $this->user->id, 'form_name' => $template->name, 'content' => ['v' => 2], 'version_number' => 2]);
+    $submission->versions()->create(['user_id' => $this->user->id, 'form_name' => $template->name, 'content' => ['v' => 3], 'version_number' => 3]);
 
     $response = $this->getJson("/api/v1/form-submissions/{$submission->id}/versions", [
         'Authorization' => "Bearer $this->token",
@@ -278,6 +287,7 @@ test('show form submission returns template and current version', function () {
     $submission = FormSubmission::create(['form_template_id' => $template->id]);
     $v1 = $submission->versions()->create([
         'user_id' => $this->user->id,
+        'form_name' => 'Test Template',
         'content' => ['answer' => 'foo'],
         'version_number' => 1,
     ]);
@@ -288,7 +298,10 @@ test('show form submission returns template and current version', function () {
     ]);
 
     $response->assertSuccessful()
+        ->assertJsonPath('data.template.id', $template->id)
         ->assertJsonPath('data.template.name', 'Test Template')
         ->assertJsonPath('data.current_version.version_number', 1)
-        ->assertJsonPath('data.current_version.content.answer', 'foo');
+        ->assertJsonPath('data.current_version.form_name', 'Test Template')
+        ->assertJsonPath('data.current_version.content.answer', 'foo')
+        ->assertJsonPath('data.submitted_by', $this->user->name);
 });

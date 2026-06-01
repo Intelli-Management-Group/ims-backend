@@ -34,6 +34,7 @@ class FormSubmissionVersionSeeder extends Seeder
             $version = FormSubmissionVersion::query()->create([
                 'submission_id' => $submission->id,
                 'user_id' => $user->id,
+                'form_name' => $template->name,
                 'content' => $content,
                 'version_number' => 1,
             ]);

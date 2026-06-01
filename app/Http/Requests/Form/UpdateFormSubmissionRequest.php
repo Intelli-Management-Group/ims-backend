@@ -23,6 +23,7 @@ class UpdateFormSubmissionRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'form_name' => ['required', 'string', 'max:255'],
             'content' => ['required', 'array'],
             'version_number' => ['required', 'integer'],
         ];
