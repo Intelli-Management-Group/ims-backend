@@ -17,6 +17,7 @@ class FormTemplate extends Model
         'ui_schema',
         'is_active',
         'created_by',
+        'current_version_id',
     ];
 
     protected function casts(): array
@@ -31,6 +32,16 @@ class FormTemplate extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function currentVersion(): BelongsTo
+    {
+        return $this->belongsTo(FormTemplateVersion::class, 'current_version_id');
+    }
+
+    public function versions(): HasMany
+    {
+        return $this->hasMany(FormTemplateVersion::class, 'template_id');
     }
 
     public function submissions(): HasMany
