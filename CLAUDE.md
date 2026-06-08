@@ -84,6 +84,58 @@ Pest v3 with an in-memory SQLite database (configured in `phpunit.xml`) — no r
 | API docs | Scribe v5 |
 | Local dev | Laravel Sail |
 
+---
+
+## Authorization model
+
+All authorization is binary: **admin vs. everyone else**. Every policy resolves to `$user->isAdmin()` or a simple active-check. `isAdmin()` checks `$user->role->name === 'admin'`.
+
+Consequences for development:
+- Adding new roles (e.g. `manager`) requires updating each relevant policy — there is no permission table or gate abstraction. Touch the policies explicitly.
+- All routes require `auth:api` (JWT). There are no public read endpoints.
+- Policies are registered in `AppServiceProvider::boot()` via `Gate::policy()`. **`FormSubmissionPolicy` is the only policy that exists but is NOT registered there** — authorization currently passes silently for submissions. Register it there if you add any meaningful authorization to it.
+
+## Form submission invariants
+
+These must not be broken:
+
+1. **Never update a `FormSubmissionVersion` in place.** Every change creates a new version row. The audit trail is the point.
+2. **`current_version_id` on `FormSubmission` always points to the latest version.** Update it atomically in the same DB transaction when creating a new version.
+3. **Optimistic locking via `version_number`.** The update endpoint returns `409 Conflict` if the submitted `version_number` doesn't match the current one. Frontend must handle this. The controller also uses pessimistic `lockForUpdate()` during the transaction — both locks work together.
+
+## Adding a new resource (checklist)
+
+Follow this order to match existing conventions:
+
+```
+1. php artisan make:model ModelName -mfs        # model + migration + factory + seeder
+2. php artisan make:policy ModelNamePolicy      # add to AppServiceProvider::boot() Gate::policy()
+3. php artisan make:request Form/StoreModelNameRequest
+4. php artisan make:request Form/UpdateModelNameRequest
+5. php artisan make:controller Api/V1/Domain/ModelNameController --api
+6. php artisan make:resource ModelNameResource  # place in Resources/Domain/
+7. Add route file routes/api/v1/domain.php      # include it from routes/api.php
+8. php artisan make:test Feature/Api/V1/Domain/ModelNameTest --pest
+```
+
+Controllers should call `$this->authorizeResource(ModelName::class, 'model_name')` in the constructor for standard CRUD, matching the pattern in `UserController`.
+
+## Testing conventions
+
+- Tests use an in-memory **SQLite** database — no seeder runs, factories create all state.
+- Authenticate in tests with `actingAs($user, 'api')` — never manipulate JWT tokens directly.
+- Use `UserFactory::new()->create()` for a plain user. Check factories for existing states before defining inline attributes.
+- Feature tests hit real routes through full middleware. Assert on JSON structure using `assertJsonStructure` or `assertJsonPath`.
+- Run only the file you're changing: `php artisan test --compact --filter=ModelNameTest`.
+
+## Known gaps (be aware, don't paper over)
+
+- **`FormSubmissionPolicy` is unregistered** (see Authorization section). Registering it is the right fix.
+- **Roles are names, not types.** `isAdmin()` does a string comparison on `role->name`. If a role is renamed in the DB, auth breaks. Consider this fragile during any role management work.
+- **No soft deletes anywhere.** All models are hard-deleted if deletion were ever added. No `deleted_at` column exists. Factor this in before adding delete routes.
+- **JWT claims embed department/team IDs.** Tokens are not automatically invalidated when a user's departments/teams change. Users must refresh their token (or log out/in) to reflect membership changes in their claims. The blacklist is enabled, so logout properly invalidates.
+- **No enforcement that a user's teams belong to their departments.** The DB allows any team–user assignment. If that constraint matters, add it at the service or request validation layer.
+
 ===
 
 <laravel-boost-guidelines>
@@ -97,7 +149,7 @@ The Laravel Boost guidelines are specifically curated by Laravel maintainers for
 
 This application is a Laravel application and its main Laravel ecosystems package & versions are below. You are an expert with them all. Ensure you abide by these specific packages & versions.
 
-- php - 8.2.30
+- php - 8.5.3
 - laravel/fortify (FORTIFY) - v1
 - laravel/framework (LARAVEL) - v12
 - laravel/prompts (PROMPTS) - v0
