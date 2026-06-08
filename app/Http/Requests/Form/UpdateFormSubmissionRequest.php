@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Form;
 
+use App\Rules\ContentMatchesTemplateSchema;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -22,9 +23,17 @@ class UpdateFormSubmissionRequest extends FormRequest
      */
     public function rules(): array
     {
+        $template = $this->route('form_submission')?->template;
+
+        $contentRules = ['required', 'array'];
+
+        if ($template) {
+            $contentRules[] = new ContentMatchesTemplateSchema($template->json_schema);
+        }
+
         return [
             'form_name' => ['required', 'string', 'max:255'],
-            'content' => ['required', 'array'],
+            'content' => $contentRules,
             'version_number' => ['required', 'integer'],
         ];
     }
