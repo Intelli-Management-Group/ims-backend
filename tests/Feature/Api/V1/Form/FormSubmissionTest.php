@@ -252,6 +252,39 @@ test('versions list returns versions ordered by version_number descending', func
         ->assertJsonPath('data.2.version_number', 1);
 });
 
+test('update rejects conflict based on current db state not stale route model', function () {
+    $template = FormTemplate::factory()->create();
+    $submission = FormSubmission::create(['form_template_id' => $template->id]);
+    $v1 = $submission->versions()->create([
+        'user_id' => $this->user->id,
+        'form_name' => $template->name,
+        'content' => ['v' => 1],
+        'version_number' => 1,
+    ]);
+    $submission->update(['current_version_id' => $v1->id]);
+
+    // Simulate a concurrent write advancing the version in the DB
+    $v2 = $submission->versions()->create([
+        'user_id' => $this->user->id,
+        'form_name' => $template->name,
+        'content' => ['v' => 2],
+        'version_number' => 2,
+    ]);
+    $submission->update(['current_version_id' => $v2->id]);
+
+    // Our request still believes it is updating from version 1 — should 409
+    $response = $this->putJson("/api/v1/form-submissions/{$submission->id}", [
+        'form_name' => $template->name,
+        'content' => ['v' => 3],
+        'version_number' => 1,
+    ], [
+        'Authorization' => "Bearer $this->token",
+    ]);
+
+    $response->assertStatus(409);
+    $this->assertDatabaseCount('form_submission_versions', 2);
+});
+
 test('show form submission returns template and current version', function () {
     $template = FormTemplate::factory()->create(['name' => 'Test Template']);
     $submission = FormSubmission::create(['form_template_id' => $template->id]);

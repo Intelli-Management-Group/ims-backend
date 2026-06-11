@@ -70,24 +70,25 @@ class FormSubmissionController extends Controller
     public function update(UpdateFormSubmissionRequest $request, FormSubmission $formSubmission): FormSubmissionResource
     {
         return DB::transaction(function () use ($request, $formSubmission) {
-            $formSubmission->lockForUpdate();
-            $formSubmission->load('template');
-            $currentVersion = $formSubmission->currentVersion;
+            $lockedSubmission = FormSubmission::with('currentVersion')
+                ->lockForUpdate()
+                ->findOrFail($formSubmission->id);
+            $currentVersion = $lockedSubmission->currentVersion;
 
             if ($currentVersion->version_number !== (int) $request->version_number) {
                 abort(409, 'Version conflict');
             }
 
-            $newVersion = $formSubmission->versions()->create([
+            $newVersion = $lockedSubmission->versions()->create([
                 'user_id' => Auth::guard('api')->id(),
                 'form_name' => $request->form_name,
                 'content' => $request->content,
                 'version_number' => $currentVersion->version_number + 1,
             ]);
 
-            $formSubmission->update(['current_version_id' => $newVersion->id]);
+            $lockedSubmission->update(['current_version_id' => $newVersion->id]);
 
-            return new FormSubmissionResource($formSubmission->load(['template', 'currentVersion.user']));
+            return new FormSubmissionResource($lockedSubmission->load(['template', 'currentVersion.user']));
         });
     }
 }

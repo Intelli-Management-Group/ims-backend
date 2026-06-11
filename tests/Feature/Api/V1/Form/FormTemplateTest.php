@@ -90,11 +90,21 @@ test('user can create form template', function () {
 
 test('user can update form template', function () {
     $template = FormTemplate::factory()->create();
+    $v1 = $template->versions()->create([
+        'user_id' => $this->user->id,
+        'name' => $template->name,
+        'json_schema' => $template->json_schema,
+        'ui_schema' => $template->ui_schema,
+        'is_active' => $template->is_active,
+        'version_number' => 1,
+    ]);
+    $template->update(['current_version_id' => $v1->id]);
 
     $response = $this->putJson("/api/v1/form-templates/{$template->id}", [
         'name' => 'Updated Name',
         'json_schema' => ['type' => 'object', 'title' => 'Updated'],
         'is_active' => false,
+        'version_number' => 1,
     ], [
         'Authorization' => "Bearer $this->token",
     ]);
@@ -138,9 +148,19 @@ test('form template name must be unique on creation', function () {
 test('form template name must be unique on update', function () {
     FormTemplate::factory()->create(['name' => 'Existing Form']);
     $template = FormTemplate::factory()->create(['name' => 'Another Form']);
+    $v1 = $template->versions()->create([
+        'user_id' => $this->user->id,
+        'name' => $template->name,
+        'json_schema' => $template->json_schema,
+        'ui_schema' => $template->ui_schema,
+        'is_active' => $template->is_active,
+        'version_number' => 1,
+    ]);
+    $template->update(['current_version_id' => $v1->id]);
 
     $response = $this->putJson("/api/v1/form-templates/{$template->id}", [
         'name' => 'Existing Form',
+        'version_number' => 1,
     ], [
         'Authorization' => "Bearer $this->token",
     ]);
@@ -151,10 +171,20 @@ test('form template name must be unique on update', function () {
 
 test('form template name can be updated to same name', function () {
     $template = FormTemplate::factory()->create(['name' => 'My Form']);
+    $v1 = $template->versions()->create([
+        'user_id' => $this->user->id,
+        'name' => $template->name,
+        'json_schema' => $template->json_schema,
+        'ui_schema' => $template->ui_schema,
+        'is_active' => $template->is_active,
+        'version_number' => 1,
+    ]);
+    $template->update(['current_version_id' => $v1->id]);
 
     $response = $this->putJson("/api/v1/form-templates/{$template->id}", [
         'name' => 'My Form',
         'is_active' => false,
+        'version_number' => 1,
     ], [
         'Authorization' => "Bearer $this->token",
     ]);
@@ -186,6 +216,7 @@ test('show non-existent form template returns 404', function () {
 test('update non-existent form template returns 404', function () {
     $response = $this->putJson('/api/v1/form-templates/999', [
         'json_schema' => ['type' => 'object'],
+        'version_number' => 1,
     ], [
         'Authorization' => "Bearer $this->token",
     ]);
@@ -244,9 +275,19 @@ test('user can update form template with partial data', function () {
         'ui_schema' => ['ui:order' => ['a']],
         'is_active' => true,
     ]);
+    $v1 = $template->versions()->create([
+        'user_id' => $this->user->id,
+        'name' => $template->name,
+        'json_schema' => $template->json_schema,
+        'ui_schema' => $template->ui_schema,
+        'is_active' => $template->is_active,
+        'version_number' => 1,
+    ]);
+    $template->update(['current_version_id' => $v1->id]);
 
     $response = $this->putJson("/api/v1/form-templates/{$template->id}", [
         'is_active' => false,
+        'version_number' => 1,
     ], [
         'Authorization' => "Bearer $this->token",
     ]);

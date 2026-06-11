@@ -28,6 +28,7 @@ class UpdateFormTemplateRequest extends FormRequest
             'json_schema' => ['sometimes', 'array'],
             'ui_schema' => ['sometimes', 'array'],
             'is_active' => ['sometimes', 'boolean'],
+            'version_number' => ['required', 'integer'],
         ];
     }
 }
