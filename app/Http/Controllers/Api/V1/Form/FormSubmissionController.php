@@ -40,6 +40,7 @@ class FormSubmissionController extends Controller
         return DB::transaction(function () use ($request) {
             $submission = FormSubmission::create([
                 'form_template_id' => $request->form_template_id,
+                'form_template_version_id' => $request->form_template_version_id,
             ]);
             $submission->load('template');
 
@@ -52,7 +53,7 @@ class FormSubmissionController extends Controller
 
             $submission->update(['current_version_id' => $version->id]);
 
-            return new FormSubmissionResource($submission->load(['template', 'currentVersion.user']));
+            return new FormSubmissionResource($submission->load(['template', 'templateVersion', 'currentVersion.user']));
         });
     }
 
@@ -61,7 +62,7 @@ class FormSubmissionController extends Controller
      */
     public function show(FormSubmission $formSubmission): FormSubmissionResource
     {
-        return new FormSubmissionResource($formSubmission->load(['template', 'currentVersion.user', 'versions']));
+        return new FormSubmissionResource($formSubmission->load(['template', 'templateVersion', 'currentVersion.user', 'versions']));
     }
 
     /**
