@@ -2,6 +2,7 @@
 
 use App\Models\FormSubmission;
 use App\Models\FormTemplate;
+use App\Models\FormTemplateVersion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
@@ -164,9 +165,11 @@ test('template update accepts a valid json_schema', function () {
 
 test('submission store rejects content that does not match the template schema', function () {
     $template = FormTemplate::factory()->create(['json_schema' => typedSchema()]);
+    $version = FormTemplateVersion::factory()->create(['template_id' => $template->id, 'json_schema' => typedSchema()]);
 
     $response = $this->postJson('/api/v1/form-submissions', [
         'form_template_id' => $template->id,
+        'form_template_version_id' => $version->id,
         'form_name' => $template->name,
         'content' => ['name' => 123], // name should be a string
     ], ['Authorization' => "Bearer $this->token"]);
@@ -177,9 +180,11 @@ test('submission store rejects content that does not match the template schema',
 
 test('submission store rejects content missing a required field', function () {
     $template = FormTemplate::factory()->create(['json_schema' => typedSchema()]);
+    $version = FormTemplateVersion::factory()->create(['template_id' => $template->id, 'json_schema' => typedSchema()]);
 
     $response = $this->postJson('/api/v1/form-submissions', [
         'form_template_id' => $template->id,
+        'form_template_version_id' => $version->id,
         'form_name' => $template->name,
         'content' => ['age' => 30], // missing required 'name'
     ], ['Authorization' => "Bearer $this->token"]);
@@ -190,9 +195,11 @@ test('submission store rejects content missing a required field', function () {
 
 test('submission store accepts content matching the template schema', function () {
     $template = FormTemplate::factory()->create(['json_schema' => typedSchema()]);
+    $version = FormTemplateVersion::factory()->create(['template_id' => $template->id, 'json_schema' => typedSchema()]);
 
     $response = $this->postJson('/api/v1/form-submissions', [
         'form_template_id' => $template->id,
+        'form_template_version_id' => $version->id,
         'form_name' => $template->name,
         'content' => ['name' => 'John', 'age' => 30],
     ], ['Authorization' => "Bearer $this->token"]);
@@ -202,9 +209,11 @@ test('submission store accepts content matching the template schema', function (
 
 test('submission store accepts content when template has an empty schema', function () {
     $template = FormTemplate::factory()->create(['json_schema' => []]);
+    $version = FormTemplateVersion::factory()->create(['template_id' => $template->id, 'json_schema' => []]);
 
     $response = $this->postJson('/api/v1/form-submissions', [
         'form_template_id' => $template->id,
+        'form_template_version_id' => $version->id,
         'form_name' => $template->name,
         'content' => ['anything' => 'goes'],
     ], ['Authorization' => "Bearer $this->token"]);
@@ -227,9 +236,11 @@ test('submission store reports field-level errors for nested schema violations',
         'required' => ['address'],
     ];
     $template = FormTemplate::factory()->create(['json_schema' => $schema]);
+    $version = FormTemplateVersion::factory()->create(['template_id' => $template->id, 'json_schema' => $schema]);
 
     $response = $this->postJson('/api/v1/form-submissions', [
         'form_template_id' => $template->id,
+        'form_template_version_id' => $version->id,
         'form_name' => $template->name,
         'content' => ['address' => ['street' => 99]], // street should be string
     ], ['Authorization' => "Bearer $this->token"]);
@@ -240,9 +251,11 @@ test('submission store reports field-level errors for nested schema violations',
 
 test('submission store validates additional optional fields pass when present and correct', function () {
     $template = FormTemplate::factory()->create(['json_schema' => typedSchema()]);
+    $version = FormTemplateVersion::factory()->create(['template_id' => $template->id, 'json_schema' => typedSchema()]);
 
     $response = $this->postJson('/api/v1/form-submissions', [
         'form_template_id' => $template->id,
+        'form_template_version_id' => $version->id,
         'form_name' => $template->name,
         'content' => ['name' => 'Alice', 'age' => 25],
     ], ['Authorization' => "Bearer $this->token"]);
