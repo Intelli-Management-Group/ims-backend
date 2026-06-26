@@ -48,4 +48,9 @@ class FormTemplate extends Model
     {
         return $this->hasMany(FormSubmission::class);
     }
+
+    public function permissions(): HasMany
+    {
+        return $this->hasMany(FormTemplatePermission::class);
+    }
 }
