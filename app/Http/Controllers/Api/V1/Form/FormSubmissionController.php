@@ -7,6 +7,8 @@ use App\Http\Requests\Form\StoreFormSubmissionRequest;
 use App\Http\Requests\Form\UpdateFormSubmissionRequest;
 use App\Http\Resources\Form\FormSubmissionResource;
 use App\Models\FormSubmission;
+use App\Models\FormTemplate;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Auth;
@@ -14,16 +16,26 @@ use Illuminate\Support\Facades\DB;
 
 class FormSubmissionController extends Controller
 {
+    public function __construct(private readonly NotificationService $notifications) {}
+
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request): AnonymousResourceCollection
     {
         $query = FormSubmission::query()
-            ->with(['template', 'currentVersion.user']);
+            ->with(['template', 'creator', 'currentVersion.user']);
 
         if ($request->filled('form_template_id')) {
             $query->where('form_template_id', $request->form_template_id);
+        }
+
+        if ($request->filled('priority')) {
+            $query->where('priority', $request->priority);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
         }
 
         $perPage = $request->integer('per_page', 15);
@@ -37,9 +49,15 @@ class FormSubmissionController extends Controller
      */
     public function store(StoreFormSubmissionRequest $request): FormSubmissionResource
     {
+        $template = FormTemplate::findOrFail($request->form_template_id);
+        $this->authorize('create', [FormSubmission::class, $template]);
+
         return DB::transaction(function () use ($request) {
             $submission = FormSubmission::create([
                 'form_template_id' => $request->form_template_id,
+                'form_template_version_id' => $request->form_template_version_id,
+                'created_by' => Auth::guard('api')->id(),
+                'priority' => $request->priority,
             ]);
             $submission->load('template');
 
@@ -52,7 +70,10 @@ class FormSubmissionController extends Controller
 
             $submission->update(['current_version_id' => $version->id]);
 
-            return new FormSubmissionResource($submission->load(['template', 'currentVersion.user']));
+            $submission->load(['template', 'templateVersion', 'creator', 'currentVersion.user']);
+            $this->notifications->notifySubmitted($submission);
+
+            return new FormSubmissionResource($submission);
         });
     }
 
@@ -61,7 +82,7 @@ class FormSubmissionController extends Controller
      */
     public function show(FormSubmission $formSubmission): FormSubmissionResource
     {
-        return new FormSubmissionResource($formSubmission->load(['template', 'currentVersion.user', 'versions']));
+        return new FormSubmissionResource($formSubmission->load(['template', 'templateVersion', 'creator', 'currentVersion.user', 'versions']));
     }
 
     /**
@@ -69,14 +90,20 @@ class FormSubmissionController extends Controller
      */
     public function update(UpdateFormSubmissionRequest $request, FormSubmission $formSubmission): FormSubmissionResource
     {
-        return DB::transaction(function () use ($request, $formSubmission) {
+        $this->authorize('update', $formSubmission);
+
+        $conflictSubmission = null;
+
+        $result = DB::transaction(function () use ($request, $formSubmission, &$conflictSubmission) {
             $lockedSubmission = FormSubmission::with('currentVersion')
                 ->lockForUpdate()
                 ->findOrFail($formSubmission->id);
             $currentVersion = $lockedSubmission->currentVersion;
 
             if ($currentVersion->version_number !== (int) $request->version_number) {
-                abort(409, 'Version conflict');
+                $conflictSubmission = $lockedSubmission;
+
+                return null;
             }
 
             $newVersion = $lockedSubmission->versions()->create([
@@ -86,9 +113,21 @@ class FormSubmissionController extends Controller
                 'version_number' => $currentVersion->version_number + 1,
             ]);
 
-            $lockedSubmission->update(['current_version_id' => $newVersion->id]);
+            $updateData = ['current_version_id' => $newVersion->id];
+            if ($request->has('priority')) {
+                $updateData['priority'] = $request->priority;
+            }
 
-            return new FormSubmissionResource($lockedSubmission->load(['template', 'currentVersion.user']));
+            $lockedSubmission->update($updateData);
+
+            return new FormSubmissionResource($lockedSubmission->load(['template', 'creator', 'currentVersion.user']));
         });
+
+        if ($conflictSubmission) {
+            $this->notifications->notifyConflict($conflictSubmission, Auth::guard('api')->user());
+            abort(409, 'Version conflict');
+        }
+
+        return $result;
     }
 }
