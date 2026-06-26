@@ -14,8 +14,14 @@ class FormSubmission extends Model
     protected $fillable = [
         'form_template_id',
         'form_template_version_id',
+        'created_by',
         'current_version_id',
     ];
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
 
     public function template(): BelongsTo
     {

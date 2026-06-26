@@ -294,6 +294,7 @@ test('show form submission returns template and current version', function () {
     $submission = FormSubmission::create([
         'form_template_id' => $template->id,
         'form_template_version_id' => $templateVersion->id,
+        'created_by' => $this->user->id,
     ]);
     $v1 = $submission->versions()->create([
         'user_id' => $this->user->id,
@@ -315,7 +316,7 @@ test('show form submission returns template and current version', function () {
         ->assertJsonPath('data.current_version.version_number', 1)
         ->assertJsonPath('data.current_version.form_name', 'Test Template')
         ->assertJsonPath('data.current_version.content.answer', 'foo')
-        ->assertJsonPath('data.submitted_by', $this->user->name);
+        ->assertJsonPath('data.created_by', $this->user->name);
 });
 
 test('store persists the template version the submission was filled against', function () {

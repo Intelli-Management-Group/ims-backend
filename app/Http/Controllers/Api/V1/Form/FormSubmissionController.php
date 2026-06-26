@@ -21,7 +21,7 @@ class FormSubmissionController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $query = FormSubmission::query()
-            ->with(['template', 'currentVersion.user']);
+            ->with(['template', 'creator', 'currentVersion.user']);
 
         if ($request->filled('form_template_id')) {
             $query->where('form_template_id', $request->form_template_id);
@@ -45,6 +45,7 @@ class FormSubmissionController extends Controller
             $submission = FormSubmission::create([
                 'form_template_id' => $request->form_template_id,
                 'form_template_version_id' => $request->form_template_version_id,
+                'created_by' => Auth::guard('api')->id(),
             ]);
             $submission->load('template');
 
@@ -57,7 +58,7 @@ class FormSubmissionController extends Controller
 
             $submission->update(['current_version_id' => $version->id]);
 
-            return new FormSubmissionResource($submission->load(['template', 'templateVersion', 'currentVersion.user']));
+            return new FormSubmissionResource($submission->load(['template', 'templateVersion', 'creator', 'currentVersion.user']));
         });
     }
 
@@ -66,7 +67,7 @@ class FormSubmissionController extends Controller
      */
     public function show(FormSubmission $formSubmission): FormSubmissionResource
     {
-        return new FormSubmissionResource($formSubmission->load(['template', 'templateVersion', 'currentVersion.user', 'versions']));
+        return new FormSubmissionResource($formSubmission->load(['template', 'templateVersion', 'creator', 'currentVersion.user', 'versions']));
     }
 
     /**
@@ -95,7 +96,7 @@ class FormSubmissionController extends Controller
 
             $lockedSubmission->update(['current_version_id' => $newVersion->id]);
 
-            return new FormSubmissionResource($lockedSubmission->load(['template', 'currentVersion.user']));
+            return new FormSubmissionResource($lockedSubmission->load(['template', 'creator', 'currentVersion.user']));
         });
     }
 }
