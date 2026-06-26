@@ -27,6 +27,10 @@ class FormSubmissionController extends Controller
             $query->where('form_template_id', $request->form_template_id);
         }
 
+        if ($request->filled('priority')) {
+            $query->where('priority', $request->priority);
+        }
+
         $perPage = $request->integer('per_page', 15);
         $perPage = min(max($perPage, 1), 100);
 
@@ -46,6 +50,7 @@ class FormSubmissionController extends Controller
                 'form_template_id' => $request->form_template_id,
                 'form_template_version_id' => $request->form_template_version_id,
                 'created_by' => Auth::guard('api')->id(),
+                'priority' => $request->priority,
             ]);
             $submission->load('template');
 
@@ -94,7 +99,12 @@ class FormSubmissionController extends Controller
                 'version_number' => $currentVersion->version_number + 1,
             ]);
 
-            $lockedSubmission->update(['current_version_id' => $newVersion->id]);
+            $updateData = ['current_version_id' => $newVersion->id];
+            if ($request->has('priority')) {
+                $updateData['priority'] = $request->priority;
+            }
+
+            $lockedSubmission->update($updateData);
 
             return new FormSubmissionResource($lockedSubmission->load(['template', 'creator', 'currentVersion.user']));
         });
