@@ -18,6 +18,7 @@ class FormSubmissionResource extends JsonResource
             'id' => $this->id,
             // 'form_template_id' => $this->form_template_id,
             // 'current_version_id' => $this->current_version_id,
+            'priority' => $this->priority?->value,
             'template' => new FormTemplateResource($this->whenLoaded('template')),
             'template_version' => new FormTemplateVersionResource($this->whenLoaded('templateVersion')),
             'current_version' => new FormSubmissionVersionResource($this->whenLoaded('currentVersion')),

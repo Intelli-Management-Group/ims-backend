@@ -395,3 +395,88 @@ test('store rejects form_template_version_id that belongs to a different templat
     $response->assertUnprocessable()
         ->assertJsonValidationErrors(['form_template_version_id']);
 });
+
+test('store persists and returns priority when provided', function () {
+    $template = FormTemplate::factory()->create();
+    $templateVersion = FormTemplateVersion::factory()->create(['template_id' => $template->id, 'version_number' => 1]);
+
+    $response = $this->postJson('/api/v1/form-submissions', [
+        'form_template_id' => $template->id,
+        'form_template_version_id' => $templateVersion->id,
+        'form_name' => $template->name,
+        'content' => ['field' => 'value'],
+        'priority' => 'high',
+    ], ['Authorization' => "Bearer $this->token"]);
+
+    $response->assertCreated()
+        ->assertJsonPath('data.priority', 'high');
+
+    $this->assertDatabaseHas('form_submissions', ['priority' => 'high']);
+});
+
+test('store creates submission with null priority when not provided', function () {
+    $template = FormTemplate::factory()->create();
+    $templateVersion = FormTemplateVersion::factory()->create(['template_id' => $template->id, 'version_number' => 1]);
+
+    $response = $this->postJson('/api/v1/form-submissions', [
+        'form_template_id' => $template->id,
+        'form_template_version_id' => $templateVersion->id,
+        'form_name' => $template->name,
+        'content' => ['field' => 'value'],
+    ], ['Authorization' => "Bearer $this->token"]);
+
+    $response->assertCreated()
+        ->assertJsonPath('data.priority', null);
+});
+
+test('update can change priority on a submission', function () {
+    $template = FormTemplate::factory()->create();
+    $submission = FormSubmission::create(['form_template_id' => $template->id, 'priority' => 'low']);
+    $v1 = $submission->versions()->create([
+        'user_id' => $this->user->id,
+        'form_name' => $template->name,
+        'content' => ['v' => 1],
+        'version_number' => 1,
+    ]);
+    $submission->update(['current_version_id' => $v1->id]);
+
+    $response = $this->putJson("/api/v1/form-submissions/{$submission->id}", [
+        'form_name' => $template->name,
+        'content' => ['v' => 2],
+        'version_number' => 1,
+        'priority' => 'critical',
+    ], ['Authorization' => "Bearer $this->token"]);
+
+    $response->assertSuccessful()
+        ->assertJsonPath('data.priority', 'critical');
+
+    $this->assertDatabaseHas('form_submissions', ['id' => $submission->id, 'priority' => 'critical']);
+});
+
+test('list can be filtered by priority', function () {
+    FormSubmission::factory(2)->create(['priority' => 'high']);
+    FormSubmission::factory(3)->create(['priority' => 'low']);
+
+    $response = $this->getJson('/api/v1/form-submissions?priority=high', [
+        'Authorization' => "Bearer $this->token",
+    ]);
+
+    $response->assertSuccessful()
+        ->assertJsonCount(2, 'data');
+});
+
+test('store rejects invalid priority value', function () {
+    $template = FormTemplate::factory()->create();
+    $templateVersion = FormTemplateVersion::factory()->create(['template_id' => $template->id, 'version_number' => 1]);
+
+    $response = $this->postJson('/api/v1/form-submissions', [
+        'form_template_id' => $template->id,
+        'form_template_version_id' => $templateVersion->id,
+        'form_name' => $template->name,
+        'content' => [],
+        'priority' => 'urgent',
+    ], ['Authorization' => "Bearer $this->token"]);
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['priority']);
+});

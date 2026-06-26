@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\Form;
 
+use App\Enums\SubmissionPriority;
 use App\Rules\ContentMatchesTemplateSchema;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rules\Enum;
 
 class UpdateFormSubmissionRequest extends FormRequest
 {
@@ -38,6 +40,7 @@ class UpdateFormSubmissionRequest extends FormRequest
             'form_name' => ['required', 'string', 'max:255'],
             'content' => $contentRules,
             'version_number' => ['required', 'integer'],
+            'priority' => ['nullable', new Enum(SubmissionPriority::class)],
         ];
     }
 }
