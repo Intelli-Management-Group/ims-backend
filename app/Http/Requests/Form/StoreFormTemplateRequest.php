@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\Form;
 
-// use Illuminate\Contracts\Validation\ValidationRule;
+use App\Enums\AssigneeScope;
+use App\Rules\ValidJsonSchema;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Enum;
 
 class StoreFormTemplateRequest extends FormRequest
 {
@@ -25,9 +27,10 @@ class StoreFormTemplateRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255', Rule::unique('form_templates')],
-            'json_schema' => ['required', 'array'],
+            'json_schema' => ['present', 'array', new ValidJsonSchema],
             'ui_schema' => ['present', 'array'],
             'is_active' => ['sometimes', 'boolean'],
+            'assignee_scope' => ['nullable', new Enum(AssigneeScope::class)],
         ];
     }
 }

@@ -21,6 +21,7 @@ class FormTemplateResource extends JsonResource
             'json_schema' => $this->json_schema,
             'ui_schema' => $this->ui_schema,
             'is_active' => $this->is_active,
+            'assignee_scope' => $this->assignee_scope?->value,
             'created_by' => $this->created_by,
             'creator' => new UserResource($this->whenLoaded('creator')),
             'current_version' => new FormTemplateVersionResource($this->whenLoaded('currentVersion')),

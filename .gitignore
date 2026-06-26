@@ -24,4 +24,4 @@ Homestead.yaml
 Thumbs.db
 .scribe/
 resources/views/scribe/
-public/vendor/scribe/
+public/vendor/scribe/.claude/worktrees/
