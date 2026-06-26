@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\SubmissionPriority;
+use App\Enums\SubmissionStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,12 +19,14 @@ class FormSubmission extends Model
         'created_by',
         'current_version_id',
         'priority',
+        'status',
     ];
 
     protected function casts(): array
     {
         return [
             'priority' => SubmissionPriority::class,
+            'status' => SubmissionStatus::class,
         ];
     }
 

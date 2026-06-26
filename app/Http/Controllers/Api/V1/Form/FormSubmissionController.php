@@ -31,6 +31,10 @@ class FormSubmissionController extends Controller
             $query->where('priority', $request->priority);
         }
 
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
         $perPage = $request->integer('per_page', 15);
         $perPage = min(max($perPage, 1), 100);
 
