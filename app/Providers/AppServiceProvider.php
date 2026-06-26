@@ -38,6 +38,7 @@ class AppServiceProvider extends ServiceProvider
         // Morph map for ABAC permission subjects.
         // Stored as short aliases in form_template_permissions.permissible_type.
         Relation::morphMap([
+            'user' => User::class,
             'role' => Role::class,
             'department' => Department::class,
             'team' => Team::class,

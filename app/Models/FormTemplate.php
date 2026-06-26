@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AssigneeScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,6 +17,7 @@ class FormTemplate extends Model
         'json_schema',
         'ui_schema',
         'is_active',
+        'assignee_scope',
         'created_by',
         'current_version_id',
     ];
@@ -26,6 +28,7 @@ class FormTemplate extends Model
             'json_schema' => 'array',
             'ui_schema' => 'array',
             'is_active' => 'boolean',
+            'assignee_scope' => AssigneeScope::class,
         ];
     }
 

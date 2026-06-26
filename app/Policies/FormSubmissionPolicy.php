@@ -56,6 +56,11 @@ class FormSubmissionPolicy
         return $user->isAdmin();
     }
 
+    public function assign(User $user, FormSubmission $formSubmission): bool
+    {
+        return $user->isAdmin();
+    }
+
     public function delete(User $user, FormSubmission $formSubmission): bool
     {
         return $user->isAdmin();

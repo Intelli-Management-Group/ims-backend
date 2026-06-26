@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class FormSubmission extends Model
 {
@@ -20,6 +21,8 @@ class FormSubmission extends Model
         'current_version_id',
         'priority',
         'status',
+        'assignee_type',
+        'assignee_id',
     ];
 
     protected function casts(): array
@@ -54,5 +57,10 @@ class FormSubmission extends Model
     public function versions(): HasMany
     {
         return $this->hasMany(FormSubmissionVersion::class, 'submission_id');
+    }
+
+    public function assignee(): MorphTo
+    {
+        return $this->morphTo();
     }
 }

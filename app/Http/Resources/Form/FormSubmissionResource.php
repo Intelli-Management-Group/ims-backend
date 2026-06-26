@@ -24,6 +24,13 @@ class FormSubmissionResource extends JsonResource
             'template_version' => new FormTemplateVersionResource($this->whenLoaded('templateVersion')),
             'current_version' => new FormSubmissionVersionResource($this->whenLoaded('currentVersion')),
             'created_by' => $this->whenLoaded('creator', fn () => $this->creator?->name),
+            'assignee_type' => $this->assignee_type,
+            'assignee_id' => $this->assignee_id,
+            'assignee' => $this->whenLoaded('assignee', fn () => $this->assignee ? [
+                'type' => $this->assignee_type,
+                'id' => $this->assignee->id,
+                'name' => $this->assignee->name,
+            ] : null),
             // 'versions' => FormSubmissionVersionResource::collection($this->whenLoaded('versions')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
