@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Form;
 
+use App\Rules\ContentMatchesTemplateSchema;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -22,9 +23,19 @@ class UpdateFormSubmissionRequest extends FormRequest
      */
     public function rules(): array
     {
+        // Validate against the pinned template version the submission was created
+        // against, not the live template (whose schema may have since changed).
+        $templateVersion = $this->route('form_submission')?->templateVersion;
+
+        $contentRules = ['required', 'array'];
+
+        if ($templateVersion) {
+            $contentRules[] = new ContentMatchesTemplateSchema($templateVersion->json_schema);
+        }
+
         return [
             'form_name' => ['required', 'string', 'max:255'],
-            'content' => ['required', 'array'],
+            'content' => $contentRules,
             'version_number' => ['required', 'integer'],
         ];
     }
