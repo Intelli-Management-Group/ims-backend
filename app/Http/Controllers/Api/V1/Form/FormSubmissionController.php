@@ -95,7 +95,7 @@ class FormSubmissionController extends Controller
 
             $lockedSubmission->update(['current_version_id' => $newVersion->id]);
 
-            return new FormSubmissionResource($lockedSubmission->load(['template', 'currentVersion.user']));
+            return new FormSubmissionResource($lockedSubmission->load(['template', 'templateVersion', 'currentVersion.user']));
         });
     }
 }
