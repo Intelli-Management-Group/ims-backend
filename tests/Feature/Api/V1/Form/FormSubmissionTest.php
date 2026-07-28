@@ -4,13 +4,12 @@ use App\Models\FormSubmission;
 use App\Models\FormTemplate;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Auth;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->user = User::factory()->create();
-    $this->token = Auth::guard('api')->tokenById($this->user->id);
+    $this->token = $this->user->createToken('test')->plainTextToken;
 });
 
 test('user can create form submission', function () {

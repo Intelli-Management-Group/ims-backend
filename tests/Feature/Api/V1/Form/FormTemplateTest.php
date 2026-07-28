@@ -4,13 +4,12 @@ use App\Models\FormTemplate;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Auth;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->user = User::factory()->create();
-    $this->token = Auth::guard('api')->tokenById($this->user->id);
+    $this->token = $this->user->createToken('test')->plainTextToken;
 });
 
 test('user can list form templates', function () {
@@ -33,7 +32,7 @@ test('admin user can see inactive form templates in list', function () {
     $role = Role::factory()->create(['name' => 'admin', 'is_active' => true]);
     $admin->update(['role_id' => $role->id]);
 
-    $adminToken = Auth::guard('api')->tokenById($admin->id);
+    $adminToken = $admin->createToken('test')->plainTextToken;
 
     $response = $this->getJson('/api/v1/form-templates', [
         'Authorization' => "Bearer $adminToken",
@@ -251,7 +250,7 @@ test('admin can show inactive form template', function () {
     $admin = User::factory()->create();
     $role = Role::factory()->create(['name' => 'admin', 'is_active' => true]);
     $admin->update(['role_id' => $role->id]);
-    $adminToken = Auth::guard('api')->tokenById($admin->id);
+    $adminToken = $admin->createToken('test')->plainTextToken;
 
     $template = FormTemplate::factory()->create(['is_active' => false]);
 

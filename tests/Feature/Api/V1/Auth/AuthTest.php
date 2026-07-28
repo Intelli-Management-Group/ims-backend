@@ -2,7 +2,6 @@
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -47,7 +46,7 @@ test('user cannot login with incorrect credentials', function () {
 test('authenticated user can get their profile', function () {
     /** @var TestCase $this */
     $user = User::factory()->create();
-    $token = Auth::guard('api')->login($user);
+    $token = $user->createToken('test')->plainTextToken;
 
     $response = $this->getJson('/api/v1/auth/me', [
         'Authorization' => "Bearer $token",
@@ -60,7 +59,7 @@ test('authenticated user can get their profile', function () {
 test('authenticated user can logout', function () {
     /** @var TestCase $this */
     $user = User::factory()->create();
-    $token = Auth::guard('api')->login($user);
+    $token = $user->createToken('test')->plainTextToken;
 
     $response = $this->postJson('/api/v1/auth/logout', [], [
         'Authorization' => "Bearer $token",
@@ -73,7 +72,7 @@ test('authenticated user can logout', function () {
 test('authenticated user can refresh token', function () {
     /** @var TestCase $this */
     $user = User::factory()->create();
-    $token = Auth::guard('api')->login($user);
+    $token = $user->createToken('test')->plainTextToken;
 
     $response = $this->postJson('/api/v1/auth/refresh', [], [
         'Authorization' => "Bearer $token",
@@ -92,7 +91,7 @@ test('authenticated user can change password', function () {
     $user = User::factory()->create([
         'password' => Hash::make('oldpassword'),
     ]);
-    $token = Auth::guard('api')->login($user);
+    $token = $user->createToken('test')->plainTextToken;
 
     $response = $this->postJson('/api/v1/auth/change-password', [
         'current_password' => 'oldpassword',
@@ -135,7 +134,7 @@ test('unauthenticated user cannot access protected auth routes', function (strin
 test('change password validation', function (array $data, array $errors) {
     /** @var TestCase $this */
     $user = User::factory()->create(['password' => Hash::make('oldpassword')]);
-    $token = Auth::guard('api')->login($user);
+    $token = $user->createToken('test')->plainTextToken;
 
     $response = $this->postJson('/api/v1/auth/change-password', $data, [
         'Authorization' => "Bearer $token",

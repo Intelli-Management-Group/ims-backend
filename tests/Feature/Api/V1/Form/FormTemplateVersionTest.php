@@ -4,13 +4,12 @@ use App\Models\FormTemplate;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Auth;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->user = User::factory()->create();
-    $this->token = Auth::guard('api')->tokenById($this->user->id);
+    $this->token = $this->user->createToken('test')->plainTextToken;
 });
 
 // ---------------------------------------------------------------------------
@@ -348,7 +347,7 @@ test('admin can list versions of an inactive template', function () {
     $admin = User::factory()->create();
     $role = Role::factory()->create(['name' => 'admin', 'is_active' => true]);
     $admin->update(['role_id' => $role->id]);
-    $adminToken = Auth::guard('api')->tokenById($admin->id);
+    $adminToken = $admin->createToken('test')->plainTextToken;
 
     $template = templateWithVersion(['is_active' => false]);
 

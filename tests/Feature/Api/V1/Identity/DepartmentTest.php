@@ -4,7 +4,6 @@ use App\Models\Department;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Auth;
 
 uses(RefreshDatabase::class);
 
@@ -14,13 +13,13 @@ beforeEach(function () {
     $this->userRole = Role::factory()->create(['name' => 'user']);
 
     $this->admin = User::factory()->create(['role_id' => $this->adminRole->id]);
-    $this->adminToken = Auth::guard('api')->tokenById($this->admin->id);
+    $this->adminToken = $this->admin->createToken('test')->plainTextToken;
 
     $this->manager = User::factory()->create(['role_id' => $this->managerRole->id]);
-    $this->managerToken = Auth::guard('api')->tokenById($this->manager->id);
+    $this->managerToken = $this->manager->createToken('test')->plainTextToken;
 
     $this->user = User::factory()->create(['role_id' => $this->userRole->id]);
-    $this->userToken = Auth::guard('api')->tokenById($this->user->id);
+    $this->userToken = $this->user->createToken('test')->plainTextToken;
 });
 
 test('admin can list departments', function () {

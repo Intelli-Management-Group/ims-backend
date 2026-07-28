@@ -8,9 +8,8 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Resources\Identity\UserResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use PHPOpenSourceSaver\JWTAuth\JWTGuard;
 
 class AuthController extends Controller
 {
@@ -18,23 +17,21 @@ class AuthController extends Controller
     {
         $credentials = $request->validated();
 
-        if (! $token = Auth::guard('api')->attempt($credentials)) {
+        $user = User::where('email', $credentials['email'])->first();
+        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             return response()->json(['error' => 'Wrong email or password, please try again.'], 401);
         }
 
-        $user = Auth::guard('api')->user();
         if (! $user->is_active) {
-            Auth::guard('api')->logout();
-
             return response()->json(['error' => 'Your account is inactive. Please contact your administrator.'], 401);
         }
 
-        return $this->respondWithToken($token);
+        return $this->respondWithToken($user->createToken('spa')->plainTextToken);
     }
 
-    public function me(): JsonResponse
+    public function me(Request $request): JsonResponse
     {
-        $user = Auth::guard('api')->user();
+        $user = $request->user();
         if (! $user instanceof User) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
@@ -43,24 +40,28 @@ class AuthController extends Controller
         return response()->json($resource->response()->getData(), 200);
     }
 
-    public function logout(): JsonResponse
+    public function logout(Request $request): JsonResponse
     {
-        Auth::guard('api')->logout();
+        $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Successfully logged out']);
     }
 
-    public function refresh(): JsonResponse
+    public function refresh(Request $request): JsonResponse
     {
-        /** @var JWTGuard $guard */
-        $guard = Auth::guard('api');
+        $user = $request->user();
+        if (! $user instanceof User) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
 
-        return $this->respondWithToken($guard->refresh());
+        $user->currentAccessToken()->delete();
+
+        return $this->respondWithToken($user->createToken('spa')->plainTextToken);
     }
 
     public function changePassword(ChangePasswordRequest $request): JsonResponse
     {
-        $user = Auth::guard('api')->user();
+        $user = $request->user();
         if (! $user instanceof User) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
@@ -74,13 +75,10 @@ class AuthController extends Controller
 
     protected function respondWithToken(string $token): JsonResponse
     {
-        /** @var JWTGuard $guard */
-        $guard = Auth::guard('api');
-
         return response()->json([
             'access_token' => $token,
-            'token_type' => 'bearer',
-            'expires_in' => $guard->factory()->getTTL() * 60,
+            'token_type' => 'Bearer',
+            'expires_in' => config('sanctum.expiration') * 60,
         ]);
     }
 }
