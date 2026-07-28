@@ -3,17 +3,20 @@
 namespace App\Providers;
 
 use App\Models\Department;
+use App\Models\FormSubmission;
 use App\Models\FormTemplate;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
 use App\Policies\DepartmentPolicy;
+use App\Policies\FormSubmissionPolicy;
 use App\Policies\FormTemplatePolicy;
 use App\Policies\RolePolicy;
 use App\Policies\TeamPolicy;
 use App\Policies\UserPolicy;
 use App\Services\Identity\IdentityService;
 use App\Services\Identity\IdentityServiceInterface;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -32,10 +35,19 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Morph map for ABAC permission subjects.
+        // Stored as short aliases in form_template_permissions.permissible_type.
+        Relation::morphMap([
+            'role' => Role::class,
+            'department' => Department::class,
+            'team' => Team::class,
+        ]);
+
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Department::class, DepartmentPolicy::class);
         Gate::policy(Role::class, RolePolicy::class);
         Gate::policy(Team::class, TeamPolicy::class);
         Gate::policy(FormTemplate::class, FormTemplatePolicy::class);
+        Gate::policy(FormSubmission::class, FormSubmissionPolicy::class);
     }
 }

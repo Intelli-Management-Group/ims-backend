@@ -19,6 +19,7 @@ class FormSubmissionResource extends JsonResource
             // 'form_template_id' => $this->form_template_id,
             // 'current_version_id' => $this->current_version_id,
             'template' => new FormTemplateResource($this->whenLoaded('template')),
+            'template_version' => new FormTemplateVersionResource($this->whenLoaded('templateVersion')),
             'current_version' => new FormSubmissionVersionResource($this->whenLoaded('currentVersion')),
             'submitted_by' => $this->whenLoaded('currentVersion', fn () => $this->currentVersion->user?->name),
             // 'versions' => FormSubmissionVersionResource::collection($this->whenLoaded('versions')),

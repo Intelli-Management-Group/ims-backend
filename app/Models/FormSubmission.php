@@ -13,12 +13,19 @@ class FormSubmission extends Model
 
     protected $fillable = [
         'form_template_id',
+        'form_template_version_id',
         'current_version_id',
     ];
 
     public function template(): BelongsTo
     {
         return $this->belongsTo(FormTemplate::class, 'form_template_id');
+    }
+
+    /** The specific template version that was active when this submission was created. */
+    public function templateVersion(): BelongsTo
+    {
+        return $this->belongsTo(FormTemplateVersion::class, 'form_template_version_id');
     }
 
     public function currentVersion(): BelongsTo

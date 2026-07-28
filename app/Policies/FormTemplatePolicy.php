@@ -2,8 +2,10 @@
 
 namespace App\Policies;
 
+use App\Enums\FormPermissionAction;
 use App\Models\FormTemplate;
 use App\Models\User;
+use App\Services\Form\FormPermissionService;
 
 class FormTemplatePolicy
 {
@@ -13,7 +15,12 @@ class FormTemplatePolicy
             return true;
         }
 
-        return $formTemplate->is_active;
+        if (! $formTemplate->is_active) {
+            return false;
+        }
+
+        return app(FormPermissionService::class)
+            ->userCanOnTemplate($user, FormPermissionAction::View, $formTemplate);
     }
 
     public function viewInactive(User $user): bool

@@ -7,6 +7,7 @@ use App\Http\Requests\Form\StoreFormSubmissionRequest;
 use App\Http\Requests\Form\UpdateFormSubmissionRequest;
 use App\Http\Resources\Form\FormSubmissionResource;
 use App\Models\FormSubmission;
+use App\Models\FormTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Auth;
@@ -14,9 +15,6 @@ use Illuminate\Support\Facades\DB;
 
 class FormSubmissionController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index(Request $request): AnonymousResourceCollection
     {
         $query = FormSubmission::query()
@@ -32,14 +30,15 @@ class FormSubmissionController extends Controller
         return FormSubmissionResource::collection($query->paginate($perPage));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(StoreFormSubmissionRequest $request): FormSubmissionResource
     {
+        $template = FormTemplate::findOrFail($request->form_template_id);
+        $this->authorize('create', [FormSubmission::class, $template]);
+
         return DB::transaction(function () use ($request) {
             $submission = FormSubmission::create([
                 'form_template_id' => $request->form_template_id,
+                'form_template_version_id' => $request->form_template_version_id,
             ]);
             $submission->load('template');
 
@@ -52,23 +51,19 @@ class FormSubmissionController extends Controller
 
             $submission->update(['current_version_id' => $version->id]);
 
-            return new FormSubmissionResource($submission->load(['template', 'currentVersion.user']));
+            return new FormSubmissionResource($submission->load(['template', 'templateVersion', 'currentVersion.user']));
         });
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(FormSubmission $formSubmission): FormSubmissionResource
     {
-        return new FormSubmissionResource($formSubmission->load(['template', 'currentVersion.user', 'versions']));
+        return new FormSubmissionResource($formSubmission->load(['template', 'templateVersion', 'currentVersion.user', 'versions']));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(UpdateFormSubmissionRequest $request, FormSubmission $formSubmission): FormSubmissionResource
     {
+        $this->authorize('update', $formSubmission);
+
         return DB::transaction(function () use ($request, $formSubmission) {
             $lockedSubmission = FormSubmission::with('currentVersion')
                 ->lockForUpdate()
@@ -88,7 +83,7 @@ class FormSubmissionController extends Controller
 
             $lockedSubmission->update(['current_version_id' => $newVersion->id]);
 
-            return new FormSubmissionResource($lockedSubmission->load(['template', 'currentVersion.user']));
+            return new FormSubmissionResource($lockedSubmission->load(['template', 'templateVersion', 'currentVersion.user']));
         });
     }
 }
