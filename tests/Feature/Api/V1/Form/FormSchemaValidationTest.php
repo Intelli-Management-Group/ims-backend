@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\FormSubmission;
+use App\Models\FormSubmissionVersion;
 use App\Models\FormTemplate;
 use App\Models\FormTemplateVersion;
 use App\Models\User;
@@ -266,20 +267,33 @@ test('submission store validates additional optional fields pass when present an
 // Submission: content must match the template's json_schema (update)
 // ---------------------------------------------------------------------------
 
-test('submission update rejects content that does not match the template schema', function () {
-    $template = FormTemplate::factory()->create(['json_schema' => typedSchema()]);
-    $version = FormTemplateVersion::factory()->create(['template_id' => $template->id, 'json_schema' => typedSchema()]);
+/**
+ * Helper: create a submission pinned to a specific template version.
+ *
+ * @return array{0: FormSubmission, 1: FormSubmissionVersion}
+ */
+function submissionPinnedTo(FormTemplate $template, FormTemplateVersion $templateVersion, array $content, int $userId): array
+{
     $submission = FormSubmission::create([
         'form_template_id' => $template->id,
-        'form_template_version_id' => $version->id,
+        'form_template_version_id' => $templateVersion->id,
     ]);
     $v1 = $submission->versions()->create([
-        'user_id' => $this->user->id,
+        'user_id' => $userId,
         'form_name' => $template->name,
-        'content' => ['name' => 'John'],
+        'content' => $content,
         'version_number' => 1,
     ]);
     $submission->update(['current_version_id' => $v1->id]);
+
+    return [$submission, $v1];
+}
+
+test('submission update rejects content that does not match the template schema', function () {
+    $template = FormTemplate::factory()->create(['json_schema' => typedSchema()]);
+    $tv = FormTemplateVersion::factory()->create(['template_id' => $template->id, 'json_schema' => typedSchema(), 'version_number' => 1]);
+    $template->update(['current_version_id' => $tv->id]);
+    [$submission] = submissionPinnedTo($template, $tv, ['name' => 'John'], $this->user->id);
 
     $response = $this->putJson("/api/v1/form-submissions/{$submission->id}", [
         'form_name' => $template->name,
@@ -293,18 +307,9 @@ test('submission update rejects content that does not match the template schema'
 
 test('submission update accepts content matching the template schema', function () {
     $template = FormTemplate::factory()->create(['json_schema' => typedSchema()]);
-    $version = FormTemplateVersion::factory()->create(['template_id' => $template->id, 'json_schema' => typedSchema()]);
-    $submission = FormSubmission::create([
-        'form_template_id' => $template->id,
-        'form_template_version_id' => $version->id,
-    ]);
-    $v1 = $submission->versions()->create([
-        'user_id' => $this->user->id,
-        'form_name' => $template->name,
-        'content' => ['name' => 'John'],
-        'version_number' => 1,
-    ]);
-    $submission->update(['current_version_id' => $v1->id]);
+    $tv = FormTemplateVersion::factory()->create(['template_id' => $template->id, 'json_schema' => typedSchema(), 'version_number' => 1]);
+    $template->update(['current_version_id' => $tv->id]);
+    [$submission] = submissionPinnedTo($template, $tv, ['name' => 'John'], $this->user->id);
 
     $response = $this->putJson("/api/v1/form-submissions/{$submission->id}", [
         'form_name' => $template->name,
@@ -317,18 +322,9 @@ test('submission update accepts content matching the template schema', function 
 
 test('submission update rejects content missing required field', function () {
     $template = FormTemplate::factory()->create(['json_schema' => typedSchema()]);
-    $version = FormTemplateVersion::factory()->create(['template_id' => $template->id, 'json_schema' => typedSchema()]);
-    $submission = FormSubmission::create([
-        'form_template_id' => $template->id,
-        'form_template_version_id' => $version->id,
-    ]);
-    $v1 = $submission->versions()->create([
-        'user_id' => $this->user->id,
-        'form_name' => $template->name,
-        'content' => ['name' => 'John'],
-        'version_number' => 1,
-    ]);
-    $submission->update(['current_version_id' => $v1->id]);
+    $tv = FormTemplateVersion::factory()->create(['template_id' => $template->id, 'json_schema' => typedSchema(), 'version_number' => 1]);
+    $template->update(['current_version_id' => $tv->id]);
+    [$submission] = submissionPinnedTo($template, $tv, ['name' => 'John'], $this->user->id);
 
     $response = $this->putJson("/api/v1/form-submissions/{$submission->id}", [
         'form_name' => $template->name,
@@ -340,34 +336,26 @@ test('submission update rejects content missing required field', function () {
         ->assertJsonValidationErrors(['content']);
 });
 
-test('submission update validates against the pinned version schema, not the live template', function () {
-    // Submission is pinned to v1's schema (name + optional age, name required).
-    $template = FormTemplate::factory()->create(['json_schema' => typedSchema()]);
-    $version = FormTemplateVersion::factory()->create(['template_id' => $template->id, 'json_schema' => typedSchema()]);
-    $submission = FormSubmission::create([
-        'form_template_id' => $template->id,
-        'form_template_version_id' => $version->id,
-    ]);
-    $v1 = $submission->versions()->create([
-        'user_id' => $this->user->id,
-        'form_name' => $template->name,
-        'content' => ['name' => 'John'],
-        'version_number' => 1,
-    ]);
-    $submission->update(['current_version_id' => $v1->id]);
+test('submission update validates against the pinned template version schema, not the current live schema', function () {
+    // v1 allows any string name; v2 changes the schema to require an email field
+    $v1Schema = typedSchema(); // requires 'name' (string)
+    $v2Schema = ['type' => 'object', 'properties' => ['email' => ['type' => 'string', 'format' => 'email']], 'required' => ['email']];
 
-    // The live template schema later diverges to require a different field.
-    $template->update(['json_schema' => [
-        'type' => 'object',
-        'properties' => ['email' => ['type' => 'string']],
-        'required' => ['email'],
-    ]]);
+    $template = FormTemplate::factory()->create(['json_schema' => $v1Schema]);
+    $tv1 = FormTemplateVersion::factory()->create(['template_id' => $template->id, 'json_schema' => $v1Schema, 'version_number' => 1]);
+    $template->update(['current_version_id' => $tv1->id]);
 
-    // Content valid under the pinned v1 schema (but invalid under the live one)
-    // must be accepted, because the submission is validated against its pin.
+    // Submission was created against v1
+    [$submission] = submissionPinnedTo($template, $tv1, ['name' => 'Alice'], $this->user->id);
+
+    // Template is now updated to v2 — the submission must NOT be re-validated against v2
+    $tv2 = FormTemplateVersion::factory()->create(['template_id' => $template->id, 'json_schema' => $v2Schema, 'version_number' => 2]);
+    $template->update(['current_version_id' => $tv2->id, 'json_schema' => $v2Schema]);
+
+    // Editing the submission with content valid under v1 (but invalid under v2) must succeed
     $response = $this->putJson("/api/v1/form-submissions/{$submission->id}", [
         'form_name' => $template->name,
-        'content' => ['name' => 'Jane'],
+        'content' => ['name' => 'Bob'], // valid under v1 schema, invalid under v2
         'version_number' => 1,
     ], ['Authorization' => "Bearer $this->token"]);
 
