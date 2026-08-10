@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SubmissionPriority;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,7 +17,15 @@ class FormSubmission extends Model
         'form_template_version_id',
         'created_by',
         'current_version_id',
+        'priority',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'priority' => SubmissionPriority::class,
+        ];
+    }
 
     public function creator(): BelongsTo
     {
